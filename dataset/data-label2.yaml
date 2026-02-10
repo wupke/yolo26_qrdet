@@ -1,0 +1,8 @@
+train: ./images/train
+val: ./images/val
+
+nc: 2  # 类别数量
+# names: ['right', 'left', 'straight']  # 类别名称列表
+names:
+  0: right
+  1: straight
