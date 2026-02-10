@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-'''
+"""
 FilePath: /ultralytics/qrdet/detDecodeQrRos.py
 author: wupke
 Date: 2026-02-04 15:37:16
 Version: 1.0
 LastEditors: wupke
 LastEditTime: 2026-02-04 18:27:47
-Description:       
+Description:
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
-'''
+"""
 
 # ###########   ------  适配 A3 相机RGB检测二维码   （ROS）   ------ ###########
 
-
-'''
+"""
 
 cd /home/01yuyao/ultralytics/scripts/
 
@@ -36,19 +34,18 @@ export PYTHONPATH=$PYTHONPATH:/opt/ros/noetic/lib/python3/dist-packages
 
 
 
-'''
-
-
+"""
 
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import rospy
-import cv2
 import json
-import numpy as np
 import threading
+
+import cv2
+import numpy as np
+import rospy
 from camera_node.msg import StereoImage
 
 
@@ -62,13 +59,7 @@ class QRDetectorNode:
         self.frame_lock = threading.Lock()
         self.latest_frame = None
 
-        rospy.Subscriber(
-            "/camera/stereo_image",
-            StereoImage,
-            self.callback,
-            queue_size=1,
-            buff_size=2**24
-        )
+        rospy.Subscriber("/camera/stereo_image", StereoImage, self.callback, queue_size=1, buff_size=2**24)
 
         cv2.namedWindow("QR_View", cv2.WINDOW_NORMAL)
         rospy.loginfo("✅ QR Detector Node Started (/camera/stereo_image RGB)")
@@ -83,7 +74,7 @@ class QRDetectorNode:
         np_arr = np.frombuffer(img_msg.data, dtype=np.uint8)
 
         frame = np_arr.reshape(h, step)
-        frame = frame[:, :w * ch]
+        frame = frame[:, : w * ch]
         frame = frame.reshape(h, w, ch)
 
         return frame
@@ -136,33 +127,10 @@ class QRDetectorNode:
 
 if __name__ == "__main__":
     node = QRDetectorNode()
-    node.display_loop()   # ⭐ GUI主线程
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    node.display_loop()  # ⭐ GUI主线程
 
 
 # #####  usb-单目版本  ----------- （稳定不崩版）
-
 
 
 # #!/usr/bin/env python3
@@ -258,25 +226,9 @@ if __name__ == "__main__":
 #     node.display_loop()   # ⚠️ 主线程在这里跑GUI
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # ###########   ------  适配 A3 相机识别（ROS）  ------ ###########
 
-''''
+"""'
 ① 先激活 ROS 环境（系统 Python）
 source /opt/ros/noetic/setup.bash
 source ~/hyl/perception/devel/setup.bash
@@ -287,8 +239,7 @@ conda activate yolo
 export PYTHONPATH=$PYTHONPATH:/opt/ros/noetic/lib/python3/dist-packages
 
 
-'''
-
+"""
 
 
 # #!/usr/bin/env python3
