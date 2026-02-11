@@ -6,7 +6,7 @@ author: wupke
 Date: 2026-02-10 14:21:47
 Version: 1.0
 LastEditors: wupke
-LastEditTime: 2026-02-10 14:21:53
+LastEditTime: 2026-02-11 11:24:40
 Description:       
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
 '''
@@ -177,7 +177,7 @@ class QRPerceptionNode:
         fps = 1.0 / max(1e-6, time.time() - self.last_time)
         self.last_time = time.time()
         # 将 FPS 打印在终端，而不是绘制
-        # rospy.loginfo_throttle(1.0, f"Processing at {fps:.1f} FPS")
+        rospy.loginfo_throttle(1.0, f"Processing at {fps:.1f} FPS")
 
 if __name__ == "__main__":
     try:
