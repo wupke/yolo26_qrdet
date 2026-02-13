@@ -1,16 +1,34 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 '''
-FilePath: /ultralytics/qrdet/check-detDecodeQrRos-distanceLidar11withoutcv2.py
+FilePath: /ultralytics/qrdet/check-detDecodeQrRos-distanceLidar13.py
 author: wupke
-Date: 2026-02-10 14:21:47
+Date: 2026-02-13 10:34:45
 Version: 1.0
 LastEditors: wupke
-LastEditTime: 2026-02-13 09:14:15
+LastEditTime: 2026-02-13 10:36:13
 Description:       
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
 '''
 
+
+
+'''
+
+check-detDecodeQrRos-distanceLidar11withoutcv2.py 的升级版：
+
+无窗口，输出距离数据到控制台，验证 LiDAR 距离测量的稳定性和准确性
+
+
+
+要输出对应的 $(x, y, z)$ 坐标，需要从关联到的 roi_pts（雷达坐标系下的点云）中计算出中心位置。
+最稳健的方法是对这些点的坐标分别取中位数（Median），这样可以有效排除二维码边缘或背景的离群点，
+确保得到的 3D 坐标正好落在二维码的平面中心附近。
+修改后的核心逻辑坐标计算：
+从 roi_all（缓存后的 ROI 点云）中提取坐标中位数：target_3d = np.median(roi_all, axis=0)。
+数据下发：将 x, y, z 加入到 JSON 输出消息中。
+
+'''
 
 
 
@@ -31,24 +49,11 @@ class QRPerceptionNode:
         self.detector = cv2.QRCodeDetector()
 
         # ========= Camera intrinsics =========
-        self.K = np.array([
-            [809.0, 0,   471.0],
-            [0,   808.0, 355.0],
-            [0,     0,     1.0]
-        ], np.float32)
-
-        self.D = np.array(
-            [-0.1397, 0.0121, 0.00069, -0.00011, -0.00042],
-            np.float32
-        )
+        self.K = np.array([[809.0, 0, 471.0], [0, 808.0, 355.0], [0, 0, 1.0]], np.float32)
+        self.D = np.array([-0.1397, 0.0121, 0.00069, -0.00011, -0.00042], np.float32)
 
         # ========= LiDAR → OpenCV Camera =========
-        self.R_lidar2cam = np.array([
-            [ 0, -1,  0],
-            [ 0,  0, -1],
-            [ 1,  0,  0]
-        ], np.float32)
-
+        self.R_lidar2cam = np.array([[0, -1, 0], [0, 0, -1], [1, 0, 0]], np.float32)
         self.t_lidar2cam = np.array([[0.01, 0.0, 0.075]], np.float32)
 
         # ========= Runtime =========
@@ -66,11 +71,9 @@ class QRPerceptionNode:
 
         self.pub_result = rospy.Publisher("/qr_perception/result", String, queue_size=10)
 
-        # 移除窗口初始化
-        rospy.loginfo("🚀 QR Perception Node Started (Headless Mode)")
+        rospy.loginfo("🚀 QR Perception Node Started (Output XYZ included)")
 
     def rosimg_to_cv(self, msg):
-        # 优化：只转换图像数据，不进行 copy 可能更快（取决于后续是否修改原图）
         h, w, step = msg.height, msg.width, msg.step
         return np.frombuffer(msg.data, np.uint8).reshape(h, step)[:, :w * 3].reshape(h, w, 3)
 
@@ -81,7 +84,8 @@ class QRPerceptionNode:
             self.filtered_dist = EMA_ALPHA * dist + (1 - EMA_ALPHA) * self.filtered_dist
         return self.filtered_dist
 
-    def publish_result(self, valid, stamp, qr_id=None, map_x=None, map_y=None, turn=None, yaw=None, dist=None):
+    # 修改 publish_result，增加 x, y, z 参数
+    def publish_result(self, valid, stamp, qr_id=None, map_x=None, map_y=None, turn=None, yaw=None, dist=None, pos_xyz=None):
         msg = {
             "valid": valid,
             "id": qr_id,
@@ -90,13 +94,12 @@ class QRPerceptionNode:
             "turn": turn,
             "yaw": yaw, 
             "distance": dist,
+            "pos_lidar": pos_xyz, # 这里的 xyz 是相对于雷达的坐标
             "stamp": stamp
         }
         self.pub_result.publish(json.dumps(msg))
 
     def callback(self, img_msg, pc_msg):
-        # 记录开始时间用于计算 FPS
-        start_time = time.time()
         frame = self.rosimg_to_cv(img_msg.rgb_image)
         stamp = img_msg.header.stamp.to_sec()
 
@@ -119,7 +122,7 @@ class QRPerceptionNode:
             self._log_fps()
             return
 
-        # ========= ROI & Point Cloud (与原逻辑一致) =========
+        # ========= ROI & Point Cloud =========
         x1, y1 = pts_qr.min(axis=0)
         x2, y2 = pts_qr.max(axis=0)
         w, h = x2 - x1, y2 - y1
@@ -158,7 +161,14 @@ class QRPerceptionNode:
             self.roi_pc_buffer.pop(0)
 
         roi_all = np.vstack(self.roi_pc_buffer)
-        lidar_dist = self.ema_filter(np.median(np.linalg.norm(roi_all, axis=1)))
+        
+        # --- 计算中心 3D 坐标 ---
+        # 对 ROI 内的所有点求中位数，得到相对于雷达坐标系的 (x, y, z)
+        target_xyz = np.median(roi_all, axis=0)
+        
+        # 计算欧氏距离
+        raw_dist = np.linalg.norm(target_xyz)
+        lidar_dist = self.ema_filter(raw_dist)
 
         # ========= Parse QR & Publish =========
         qr_id, map_x, map_y, qr_turn, yaw = None, None, None, None, None
@@ -167,51 +177,32 @@ class QRPerceptionNode:
             qr_id, map_x, map_y, qr_turn, yaw = info.get("id"), info.get("x"), info.get("y"), info.get("turn"), info.get("yaw")
         except: pass
 
-        self.publish_result(True, stamp, qr_id, map_x, map_y, qr_turn, yaw, round(float(lidar_dist), 3))
+        # 将坐标打包输出，保留3位小数
+        pos_output = [round(float(c), 3) for c in target_xyz]
         
-        # 仅在终端打印结果
-        rospy.loginfo(f"📦 ID:{qr_id} | Dist:{lidar_dist:.2f}m")
+        self.publish_result(
+            valid=True, 
+            stamp=stamp, 
+            qr_id=qr_id, 
+            map_x=map_x, 
+            map_y=map_y, 
+            turn=qr_turn, 
+            yaw=yaw, 
+            dist=round(float(lidar_dist), 3),
+            pos_xyz=pos_output
+        )
+        
+        rospy.loginfo(f"📦 ID:{qr_id} | Dist:{lidar_dist:.2f}m | XYZ:{pos_output}")
         self._log_fps()
 
     def _log_fps(self):
         fps = 1.0 / max(1e-6, time.time() - self.last_time)
         self.last_time = time.time()
-        # 将 FPS 打印在终端，而不是绘制
         rospy.loginfo_throttle(1.0, f"Processing at {fps:.1f} FPS")
 
 if __name__ == "__main__":
     try:
         QRPerceptionNode()
-        rospy.spin() # 使用标准的阻塞
+        rospy.spin()
     except rospy.ROSInterruptException:
         pass
-
-
-# ========= 新增：ROI 多尺度 decode =========
-
-
-    def decode_with_roi_retry(self, frame, pts_qr):
-        x1, y1 = pts_qr.min(axis=0)
-        x2, y2 = pts_qr.max(axis=0)
-        w, h = x2 - x1, y2 - y1     
-        scales = [0.2, 0.4, 0.6, 0.8]
-        for  i in range(len(scales)-1):
-            rx1, ry1 = x1 + scales[i] * w, y1 + scales[i] * h
-            rx2, ry2 = x1 + scales[i+1] * w, y1 + scales[i+1] * h
-            roi = frame[int(ry1):int(ry2), int(rx1):int(rx2)]
-            data, _ = self.detector.decode(roi)
-            if data:
-                return data
-        return None 
-    def callback(self, img_msg, pc_msg):
-        # 记录开始时间用于计算 FPS
-        start_time = time.time()
-        frame = self.rosimg_to_cv(img_msg.rgb_image)
-        stamp = img_msg.header.stamp.to_sec()
-
-        # ========= QR detect =========
-        ok, bbox = self.detector.detect(frame)
-        if not ok or bbox is None:
-            self.publish_result(valid=False, stamp=stamp)
-            self._log_fps()
-            return
