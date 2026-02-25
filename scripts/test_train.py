@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-'''
+"""
 FilePath: /ultralytics/ultralytics/test.py
 author: wupke
 Date: 2026-01-28 09:25:56
 Version: 1.0
 LastEditors: wupke
 LastEditTime: 2026-01-28 09:26:01
-Description:       
+Description:
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
-'''
+"""
+
 from ultralytics import YOLO
 
 # Load a pretrained YOLO26n model
@@ -32,4 +32,3 @@ results[0].show()  # Display results
 
 # Export the model to ONNX format for deployment
 path = model.export(format="onnx")  # Returns the path to the exported model
-
