@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-'''
+"""
 FilePath: /ultralytics/qrdet/detDecodeQrRos2topic.py
 author: wupke
 Date: 2026-02-04 18:32:28
 Version: 1.0
 LastEditors: wupke
 LastEditTime: 2026-02-04 18:38:56
-Description:       
+Description:
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
-'''
+"""
 
-'''
+"""
 
 把 detDecodeQrRos.py 的二维码检测结果，发布成 ROS topic 供其他节点使用
 思路：
@@ -43,21 +42,23 @@ QRDetection.msg：
 - 在 detDecodeQrRos.py 中添加发布代码：
 
 
-'''
+"""
 
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import rospy
-import cv2
 import json
-import numpy as np
 import threading
 
+import cv2
+import numpy as np
+import rospy
+from camera_node.msg import (
+    QRDetection,  # ⭐ 新消息
+    StereoImage,
+)
 from sensor_msgs.msg import Image
-from camera_node.msg import StereoImage
-from camera_node.msg import QRDetection   # ⭐ 新消息
 
 
 class QRDetectorNode:
@@ -71,15 +72,9 @@ class QRDetectorNode:
 
         # ===== 发布器 =====
         self.img_pub = rospy.Publisher("/qr/detected_image", Image, queue_size=1)
-        self.qr_pub  = rospy.Publisher("/qr/detections", QRDetection, queue_size=10)
+        self.qr_pub = rospy.Publisher("/qr/detections", QRDetection, queue_size=10)
 
-        rospy.Subscriber(
-            "/camera/stereo_image",
-            StereoImage,
-            self.callback,
-            queue_size=1,
-            buff_size=2**24
-        )
+        rospy.Subscriber("/camera/stereo_image", StereoImage, self.callback, queue_size=1, buff_size=2**24)
 
         cv2.namedWindow("QR_View", cv2.WINDOW_NORMAL)
         rospy.loginfo("✅ QR Detector Node Started")
@@ -88,7 +83,7 @@ class QRDetectorNode:
     def rosimg_to_cv(self, img_msg):
         h, w, step = img_msg.height, img_msg.width, img_msg.step
         np_arr = np.frombuffer(img_msg.data, dtype=np.uint8)
-        frame = np_arr.reshape(h, step)[:, :w*3].reshape(h, w, 3)
+        frame = np_arr.reshape(h, step)[:, : w * 3].reshape(h, w, 3)
         return frame
 
     # OpenCV → ROS Image
@@ -160,6 +155,3 @@ class QRDetectorNode:
 if __name__ == "__main__":
     node = QRDetectorNode()
     node.display_loop()
-
-
-
