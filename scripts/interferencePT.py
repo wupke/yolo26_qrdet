@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-'''
+"""
 FilePath: /ultralytics/scripts/interferencePT.py
 author: wupke
 Date: 2026-02-02 17:56:34
 Version: 1.0
 LastEditors: wupke
 LastEditTime: 2026-02-03 11:17:55
-Description:       
+Description:
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
-'''
+"""
 
 ######  ---------------------------------------------- 检测视频流（摄像头） ------- ######
 
 import cv2
-from PIL import Image
+
 from ultralytics import YOLO
 
 # 1. 加载模型
@@ -37,7 +36,7 @@ while True:
         break
 
     # 3. YOLO 推理
-    results = model(frame, conf=0.3)[0]   # 取第一张结果
+    results = model(frame, conf=0.3)[0]  # 取第一张结果
 
     # 4. 将检测框画到图像
     annotated_frame = results.plot()  # ⭐ 关键：自动画框+类别+置信度
@@ -46,17 +45,11 @@ while True:
     cv2.imshow("YOLO Detection", annotated_frame)
 
     # 6. 按 q 退出
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
 cap.release()
 cv2.destroyAllWindows()
-
-
-
-
-
-
 
 
 # ##### ---------------------------------other version  ------- ######
