@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-'''
+"""
 FilePath: /ultralytics/qrdet/detDecodeQrRos-distance.py
 author: wupke
 Date: 2026-02-05 09:29:11
 Version: 1.0
 LastEditors: wupke
 LastEditTime: 2026-02-05 16:14:56
-Description:       
+Description:
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
-'''
+"""
+
 """
 看到二维码”升级到“知道自己离二维码多远“
 
@@ -30,7 +30,7 @@ Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Res
 
 # 订阅 /camera/stereo_image
 
-'''
+"""
 
 cd /home/01yuyao/ultralytics/scripts/
 
@@ -76,18 +76,19 @@ self.D = np.array([-0.139726, 0.121056843, 0.000691770362, -0.00010981268, 0.042
 
 
 
-'''
+"""
 # 相机输出距离相差太大，建议使用视觉PnP测距法
 
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import rospy
-import cv2
 import json
-import numpy as np
 import threading
+
+import cv2
+import numpy as np
+import rospy
 from camera_node.msg import StereoImage
 
 QR_SIZE = 0.17  # ⭐ 二维码真实边长（米）
@@ -100,24 +101,16 @@ class QRDetectorNode:
         self.detector = cv2.QRCodeDetector()
 
         # 相机参数
-        self.K = np.array([
-            [818.53994414, 0.0, 289.78608567],
-            [0.0, 818.61550357, 283.78690782],
-            [0.0, 0.0, 1.0]
-        ], dtype=np.float32)
+        self.K = np.array(
+            [[818.53994414, 0.0, 289.78608567], [0.0, 818.61550357, 283.78690782], [0.0, 0.0, 1.0]], dtype=np.float32
+        )
 
         self.D = np.array([0.1096357, -0.3696521, -0.0072587, 0.0002249, 0.0], dtype=np.float32)
 
         self.frame_lock = threading.Lock()
         self.latest_frame = None
 
-        rospy.Subscriber(
-            "/camera/stereo_image",
-            StereoImage,
-            self.callback,
-            queue_size=1,
-            buff_size=2**24
-        )
+        rospy.Subscriber("/camera/stereo_image", StereoImage, self.callback, queue_size=1, buff_size=2**24)
 
         cv2.namedWindow("QR_View", cv2.WINDOW_NORMAL)
         rospy.loginfo("✅ QR Detector Node Started (Visual Distance Mode)")
@@ -125,28 +118,17 @@ class QRDetectorNode:
     def rosimg_to_cv(self, img_msg):
         h, w, step = img_msg.height, img_msg.width, img_msg.step
         np_arr = np.frombuffer(img_msg.data, dtype=np.uint8)
-        frame = np_arr.reshape(h, step)[:, :w*3].reshape(h, w, 3)
+        frame = np_arr.reshape(h, step)[:, : w * 3].reshape(h, w, 3)
         return frame
 
     # ⭐ 视觉PnP测距函数
     def estimate_pose(self, pts_2d):
         half = QR_SIZE / 2.0
-        obj_pts = np.array([
-            [-half, -half, 0],
-            [ half, -half, 0],
-            [ half,  half, 0],
-            [-half,  half, 0]
-        ], dtype=np.float32)
+        obj_pts = np.array([[-half, -half, 0], [half, -half, 0], [half, half, 0], [-half, half, 0]], dtype=np.float32)
 
         img_pts = pts_2d.astype(np.float32)
 
-        success, rvec, tvec = cv2.solvePnP(
-            obj_pts,
-            img_pts,
-            self.K,
-            self.D,
-            flags=cv2.SOLVEPNP_IPPE_SQUARE
-        )
+        success, rvec, tvec = cv2.solvePnP(obj_pts, img_pts, self.K, self.D, flags=cv2.SOLVEPNP_IPPE_SQUARE)
 
         if success:
             distance = np.linalg.norm(tvec)
@@ -172,13 +154,19 @@ class QRDetectorNode:
             cv2.circle(frame, (cx, cy), 5, (255, 0, 0), -1)
 
             # ⭐ 计算距离
-            rvec, tvec, dist = self.estimate_pose(pts)
+            _rvec, tvec, dist = self.estimate_pose(pts)
 
             if dist is not None:
                 z_forward = tvec[2][0]
-                cv2.putText(frame, f"Dist:{dist:.2f}m Z:{z_forward:.2f}m",
-                            (cx-80, cy-10), cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6, (0,255,0), 2)
+                cv2.putText(
+                    frame,
+                    f"Dist:{dist:.2f}m Z:{z_forward:.2f}m",
+                    (cx - 80, cy - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 0),
+                    2,
+                )
 
                 rospy.loginfo(f"📏 距离:{dist:.2f}m  前向:{z_forward:.2f}m")
 

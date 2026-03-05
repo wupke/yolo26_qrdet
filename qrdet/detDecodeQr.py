@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-'''
+"""
 FilePath: /ultralytics/qrdet/detDecodeQr.py
 author: wupke
 Date: 2026-02-04 12:07:53
 Version: 1.0
 LastEditors: wupke
 LastEditTime: 2026-02-04 15:32:48
-Description:       
+Description:
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
-'''
+"""
 
-'''
+"""
 
 pip install qrcode[pil]
 
@@ -22,14 +21,16 @@ pip install qrcode[pil]
 10cm 码 → 最远 1–1.5m
 20cm 码 → 最远 2–3m
 
-'''
+"""
 #!/usr/bin/env python3
-import rospy
-import cv2
 import json
+
+import cv2
 import numpy as np
+import rospy
+from camera_node.msg import StereoImage  # 你的自定义消息
 from cv_bridge import CvBridge
-from camera_node.msg import StereoImage   # 你的自定义消息
+
 
 class QRDetectorNode:
     def __init__(self):
@@ -38,8 +39,7 @@ class QRDetectorNode:
         self.bridge = CvBridge()
         self.detector = cv2.QRCodeDetector()
 
-        rospy.Subscriber("/camera/stereo_image", StereoImage,
-                         self.image_callback, queue_size=1, buff_size=2**24)
+        rospy.Subscriber("/camera/stereo_image", StereoImage, self.image_callback, queue_size=1, buff_size=2**24)
 
         rospy.loginfo("QR Detector Node Started")
         cv2.namedWindow("camera", cv2.WINDOW_NORMAL)
@@ -52,15 +52,15 @@ class QRDetectorNode:
             np_arr = np.frombuffer(img_msg.data, dtype=np.uint8)
 
             h = img_msg.height
-            step = img_msg.step          # 每行真实字节数（含padding）
-            width = img_msg.width        # 有效宽度
-            channels = 3                 # bgr8
+            step = img_msg.step  # 每行真实字节数（含padding）
+            width = img_msg.width  # 有效宽度
+            channels = 3  # bgr8
 
             # 先按 step 展开二维
             frame = np_arr.reshape(h, step)
 
             # 裁掉 padding
-            frame = frame[:, :width * channels]
+            frame = frame[:, : width * channels]
 
             # 再 reshape 成图像
             frame = frame.reshape(h, width, channels)
@@ -106,26 +106,6 @@ class QRDetectorNode:
 if __name__ == "__main__":
     QRDetectorNode()
     rospy.spin()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # ###########   --------   订阅ros话题  -------   格式不对
@@ -193,30 +173,6 @@ if __name__ == "__main__":
 # if __name__ == "__main__":
 #     node = QRDetectorNode()
 #     rospy.spin()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # ################     --------  直接订阅 video0 视频流检测------

@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-'''
+"""
 FilePath: /ultralytics/qrdet/check-detDecodeQrRos-distanceLidar13.py
 author: wupke
 Date: 2026-02-13 10:34:45
 Version: 1.0
 LastEditors: wupke
 LastEditTime: 2026-02-13 10:36:13
-Description:       
+Description:
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
-'''
+"""
 
-
-
-'''
+"""
 
 check-detDecodeQrRos-distanceLidar11withoutcv2.py 的升级版：
 
@@ -28,19 +25,25 @@ check-detDecodeQrRos-distanceLidar11withoutcv2.py 的升级版：
 从 roi_all（缓存后的 ROI 点云）中提取坐标中位数：target_3d = np.median(roi_all, axis=0)。
 数据下发：将 x, y, z 加入到 JSON 输出消息中。
 
-'''
-
+"""
 
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import rospy, cv2, json, numpy as np, message_filters, threading, time
+import json
+import time
+
+import cv2
+import message_filters
+import numpy as np
+import rospy
 import sensor_msgs.point_cloud2 as pc2
 from camera_node.msg import StereoImage
 from std_msgs.msg import String
 
 EMA_ALPHA = 0.25
+
 
 class QRPerceptionNode:
     def __init__(self):
@@ -75,7 +78,7 @@ class QRPerceptionNode:
 
     def rosimg_to_cv(self, msg):
         h, w, step = msg.height, msg.width, msg.step
-        return np.frombuffer(msg.data, np.uint8).reshape(h, step)[:, :w * 3].reshape(h, w, 3)
+        return np.frombuffer(msg.data, np.uint8).reshape(h, step)[:, : w * 3].reshape(h, w, 3)
 
     def ema_filter(self, dist):
         if self.filtered_dist is None:
@@ -85,17 +88,19 @@ class QRPerceptionNode:
         return self.filtered_dist
 
     # 修改 publish_result，增加 x, y, z 参数
-    def publish_result(self, valid, stamp, qr_id=None, map_x=None, map_y=None, turn=None, yaw=None, dist=None, pos_xyz=None):
+    def publish_result(
+        self, valid, stamp, qr_id=None, map_x=None, map_y=None, turn=None, yaw=None, dist=None, pos_xyz=None
+    ):
         msg = {
             "valid": valid,
             "id": qr_id,
             "map_x": map_x,
-            "map_y": map_y,            
+            "map_y": map_y,
             "turn": turn,
-            "yaw": yaw, 
+            "yaw": yaw,
             "distance": dist,
-            "pos_lidar": pos_xyz, # 这里的 xyz 是相对于雷达的坐标
-            "stamp": stamp
+            "pos_lidar": pos_xyz,  # 这里的 xyz 是相对于雷达的坐标
+            "stamp": stamp,
         }
         self.pub_result.publish(json.dumps(msg))
 
@@ -151,7 +156,7 @@ class QRPerceptionNode:
 
         mask_roi = (pts2d[:, 0] >= rx1) & (pts2d[:, 0] <= rx2) & (pts2d[:, 1] >= ry1) & (pts2d[:, 1] <= ry2)
         roi_pts = pts_lidar[mask_roi]
-        
+
         if roi_pts.shape[0] == 0:
             self.publish_result(False, stamp)
             return
@@ -161,11 +166,11 @@ class QRPerceptionNode:
             self.roi_pc_buffer.pop(0)
 
         roi_all = np.vstack(self.roi_pc_buffer)
-        
+
         # --- 计算中心 3D 坐标 ---
         # 对 ROI 内的所有点求中位数，得到相对于雷达坐标系的 (x, y, z)
         target_xyz = np.median(roi_all, axis=0)
-        
+
         # 计算欧氏距离
         raw_dist = np.linalg.norm(target_xyz)
         lidar_dist = self.ema_filter(raw_dist)
@@ -174,24 +179,31 @@ class QRPerceptionNode:
         qr_id, map_x, map_y, qr_turn, yaw = None, None, None, None, None
         try:
             info = json.loads(data)
-            qr_id, map_x, map_y, qr_turn, yaw = info.get("id"), info.get("x"), info.get("y"), info.get("turn"), info.get("yaw")
-        except: pass
+            qr_id, map_x, map_y, qr_turn, yaw = (
+                info.get("id"),
+                info.get("x"),
+                info.get("y"),
+                info.get("turn"),
+                info.get("yaw"),
+            )
+        except:
+            pass
 
         # 将坐标打包输出，保留3位小数
         pos_output = [round(float(c), 3) for c in target_xyz]
-        
+
         self.publish_result(
-            valid=True, 
-            stamp=stamp, 
-            qr_id=qr_id, 
-            map_x=map_x, 
-            map_y=map_y, 
-            turn=qr_turn, 
-            yaw=yaw, 
+            valid=True,
+            stamp=stamp,
+            qr_id=qr_id,
+            map_x=map_x,
+            map_y=map_y,
+            turn=qr_turn,
+            yaw=yaw,
             dist=round(float(lidar_dist), 3),
-            pos_xyz=pos_output
+            pos_xyz=pos_output,
         )
-        
+
         rospy.loginfo(f"📦 ID:{qr_id} | Dist:{lidar_dist:.2f}m | XYZ:{pos_output}")
         self._log_fps()
 
@@ -199,6 +211,7 @@ class QRPerceptionNode:
         fps = 1.0 / max(1e-6, time.time() - self.last_time)
         self.last_time = time.time()
         rospy.loginfo_throttle(1.0, f"Processing at {fps:.1f} FPS")
+
 
 if __name__ == "__main__":
     try:

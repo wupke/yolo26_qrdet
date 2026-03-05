@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-'''
+"""
 FilePath: /ultralytics/qrdet/detDecodeQrRos-distanceLidar.py
 author: wupke
 Date: 2026-02-05 10:42:12
 Version: 1.0
 LastEditors: wupke
 LastEditTime: 2026-02-05 16:06:19
-Description:       
+Description:
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
-'''
+"""
 
 
 ######   ------ 【视觉+LiDAR融合测距版】：  适配 A3 相机RGB检测二维码 + Livox LiDAR 输出距离数据   ------ ###########
 # QR内容识别 + LiDAR测距 融合版节点
 
-'''
+"""
 
 输入：相机 + LiDAR
 输出：
@@ -44,17 +43,22 @@ LiDAR算真实距离	✅
 
 
 
-'''
-
+"""
 
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import rospy, cv2, json, numpy as np, message_filters, threading
+import json
+import threading
+
+import cv2
+import message_filters
+import numpy as np
+import rospy
 import sensor_msgs.point_cloud2 as pc2
-from sensor_msgs.msg import PointCloud2
 from camera_node.msg import StereoImage
+from sensor_msgs.msg import PointCloud2
 
 
 class QRPerceptionNode:
@@ -70,24 +74,14 @@ class QRPerceptionNode:
         #                    [0.0, 0.0, 1.0]])
         # self.D = np.array([0.13452653490176816, -0.06657173298041671, 0.003443620193850912, 0.0061879804032612664, 0.0])
 
-       # A3-rgb 黄工给的-相机参数 
-        self.K = np.array([[809.0, 0, 471.0],
-                           [0, 808.0, 355.0],
-                           [0.0, 0.0, 1.0]])
+        # A3-rgb 黄工给的-相机参数
+        self.K = np.array([[809.0, 0, 471.0], [0, 808.0, 355.0], [0.0, 0.0, 1.0]])
         self.D = np.array([-0.139726073, 0.0121056843, 0.000691770362, -0.000109812168, -0.000424173560])
 
-
-
-
         # ========= 外参 LiDAR → Camera =========
-        T = np.array([
-            [1, 0, 0, 0.01],
-            [0, 1, 0, 0.0],
-            [0, 0, 1, 0.075],
-            [0, 0, 0, 1]
-        ])
+        T = np.array([[1, 0, 0, 0.01], [0, 1, 0, 0.0], [0, 0, 1, 0.075], [0, 0, 0, 1]])
         self.R = T[:3, :3]
-        self.tvec = T[:3, 3].reshape(3,1)
+        self.tvec = T[:3, 3].reshape(3, 1)
 
         # 线程安全图像缓存
         self.lock = threading.Lock()
@@ -95,7 +89,7 @@ class QRPerceptionNode:
 
         # 同步订阅
         img_sub = message_filters.Subscriber("/camera/stereo_image", StereoImage)
-        pc_sub  = message_filters.Subscriber("/livox/lidar", PointCloud2)
+        pc_sub = message_filters.Subscriber("/livox/lidar", PointCloud2)
 
         ts = message_filters.ApproximateTimeSynchronizer([img_sub, pc_sub], 10, 0.05)
         ts.registerCallback(self.callback)
@@ -104,8 +98,8 @@ class QRPerceptionNode:
         rospy.loginfo("🚀 QR Perception Node Started")
 
     def rosimg_to_cv(self, img_msg):
-        h,w,step = img_msg.height, img_msg.width, img_msg.step
-        return np.frombuffer(img_msg.data,np.uint8).reshape(h,step)[:,:w*3].reshape(h,w,3)
+        h, w, step = img_msg.height, img_msg.width, img_msg.step
+        return np.frombuffer(img_msg.data, np.uint8).reshape(h, step)[:, : w * 3].reshape(h, w, 3)
 
     def callback(self, img_msg, pc_msg):
 
@@ -115,11 +109,11 @@ class QRPerceptionNode:
 
         if data and bbox is not None:
             pts = bbox[0].astype(int)
-            cv2.polylines(frame, [pts], True, (0,0,255), 2)
+            cv2.polylines(frame, [pts], True, (0, 0, 255), 2)
 
-            cx = int(np.mean(pts[:,0]))
-            cy = int(np.mean(pts[:,1]))
-            cv2.circle(frame, (cx,cy), 5, (255,0,0), -1)
+            cx = int(np.mean(pts[:, 0]))
+            cy = int(np.mean(pts[:, 1]))
+            cv2.circle(frame, (cx, cy), 5, (255, 0, 0), -1)
 
             # ========= 解析二维码内容 =========
             qr_text = data
@@ -130,38 +124,39 @@ class QRPerceptionNode:
                 pass
 
             # ========= LiDAR测距 =========
-            x1,y1 = np.min(pts,axis=0)
-            x2,y2 = np.max(pts,axis=0)
-            w,h = x2-x1, y2-y1
+            x1, y1 = np.min(pts, axis=0)
+            x2, y2 = np.max(pts, axis=0)
+            w, h = x2 - x1, y2 - y1
 
-            cx1,cy1 = x1+w*0.3, y1+h*0.3
-            cx2,cy2 = x1+w*0.7, y1+h*0.7
+            cx1, cy1 = x1 + w * 0.3, y1 + h * 0.3
+            cx2, cy2 = x1 + w * 0.7, y1 + h * 0.7
 
-            pts3d = np.array([p for p in pc2.read_points(pc_msg, field_names=("x","y","z"), skip_nans=True)
-                              if 0.2<p[0]<15])
+            pts3d = np.array(
+                [p for p in pc2.read_points(pc_msg, field_names=("x", "y", "z"), skip_nans=True) if 0.2 < p[0] < 15]
+            )
 
             distance = None
 
             if pts3d.size > 0:
                 # LiDAR → Camera
-                pts_cam = (pts3d @ self.R.T) + self.tvec.ravel()
+                (pts3d @ self.R.T) + self.tvec.ravel()
 
-                pts2d,_ = cv2.projectPoints(pts3d, cv2.Rodrigues(self.R)[0], self.tvec, self.K, self.D)
-                pts2d = pts2d.reshape(-1,2)
+                pts2d, _ = cv2.projectPoints(pts3d, cv2.Rodrigues(self.R)[0], self.tvec, self.K, self.D)
+                pts2d = pts2d.reshape(-1, 2)
 
-                mask = (pts2d[:,0]>=cx1)&(pts2d[:,0]<=cx2)&(pts2d[:,1]>=cy1)&(pts2d[:,1]<=cy2)
+                mask = (pts2d[:, 0] >= cx1) & (pts2d[:, 0] <= cx2) & (pts2d[:, 1] >= cy1) & (pts2d[:, 1] <= cy2)
                 roi_pts = pts3d[mask]
 
                 if roi_pts.size > 0:
-                    distance = np.median(np.linalg.norm(roi_pts,axis=1))
+                    distance = np.median(np.linalg.norm(roi_pts, axis=1))
 
             # ========= 画信息 =========
-            cv2.putText(frame, qr_text, (cx-120, cy-40),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
+            cv2.putText(frame, qr_text, (cx - 120, cy - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
             if distance:
-                cv2.putText(frame, f"{distance:.2f} m", (cx-60, cy-10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,255), 2)
+                cv2.putText(
+                    frame, f"{distance:.2f} m", (cx - 60, cy - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2
+                )
                 rospy.loginfo(f"📦 QR:{qr_text}  📏 {distance:.2f} m")
             else:
                 rospy.loginfo(f"📦 QR:{qr_text}  (no lidar hit)")
@@ -185,21 +180,7 @@ if __name__ == "__main__":
     node.display_loop()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# # 完整融合版代码（QR + LiDAR 距离）  -------------  避免黑屏窗口  ------------ ok 
+# # 完整融合版代码（QR + LiDAR 距离）  -------------  避免黑屏窗口  ------------ ok
 
 # #!/usr/bin/env python3
 # # -*- coding: utf-8 -*-
@@ -307,12 +288,3 @@ if __name__ == "__main__":
 # if __name__ == "__main__":
 #     node = QRLidarFusion()
 #     node.display_loop()
-
-
-
-
-
-
-
-
-
