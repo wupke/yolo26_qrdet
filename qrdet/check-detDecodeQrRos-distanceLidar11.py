@@ -6,7 +6,7 @@ author: wupke
 Date: 2026-02-09 14:01:37
 Version: 1.0
 LastEditors: wupke
-LastEditTime: 2026-02-09 14:06:34
+LastEditTime: 2026-03-19 14:24:14
 Description:       
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
 '''
@@ -160,12 +160,20 @@ class QRPerceptionNode:
         cv2.polylines(frame, [pts_qr.astype(int)], True, (0, 255, 0), 2)
         cx, cy = pts_qr.mean(axis=0)
 
+        # # ========= ROI =========
+        # x1, y1 = pts_qr.min(axis=0)
+        # x2, y2 = pts_qr.max(axis=0)
+        # w, h = x2 - x1, y2 - y1
+        # rx1, ry1 = x1 + 0.2 * w, y1 + 0.2 * h
+        # rx2, ry2 = x1 + 0.8 * w, y1 + 0.8 * h
+
+        # . 缩小 ROI (只取中心 20% 区域，减少边缘干扰)
         # ========= ROI =========
         x1, y1 = pts_qr.min(axis=0)
         x2, y2 = pts_qr.max(axis=0)
         w, h = x2 - x1, y2 - y1
-        rx1, ry1 = x1 + 0.2 * w, y1 + 0.2 * h
-        rx2, ry2 = x1 + 0.8 * w, y1 + 0.8 * h
+        rx1, ry1 = x1 + 0.4 * w, y1 + 0.4 * h  # 从 0.2 缩减到 0.4
+        rx2, ry2 = x1 + 0.6 * w, y1 + 0.6 * h  # 从 0.8 缩减到 0.6
 
         # ========= Point cloud =========
         pts = np.array(list(pc2.read_points(
@@ -280,6 +288,9 @@ class QRPerceptionNode:
 
 if __name__ == "__main__":
     QRPerceptionNode().display_loop()
+
+
+
 
 
 
