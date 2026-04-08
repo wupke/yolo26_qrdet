@@ -1,20 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 '''
-FilePath: /ultralytics/qrdet/check-detDecodeQrRos-distanceLidar11.py
+FilePath: /ultralytics/qrdet/check-detDecodeQrRos-distanceLidar19.py
 author: wupke
-Date: 2026-02-09 14:01:37
+Date: 2026-03-24 13:15:19
 Version: 1.0
 LastEditors: wupke
-LastEditTime: 2026-04-03 11:04:05
+LastEditTime: 2026-03-24 13:29:20
 Description:       
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
 '''
 
+# 基于check-detDecodeQrRos-distanceLidar11.py，进行优化：
+
+
 
 '''
+1. 修改了ROI参数  ---  5% 左右的二维码中心区域，减少边缘干扰点云对距离测量的影响
 
-相比于v10，增加二维码  yaw  字段输出
+
+2. 增加了图像预处理步骤，使用CLAHE增强对比度，提高二维码检测的稳定性-- 新增数据增强
 
 
 '''
@@ -71,7 +76,7 @@ class QRPerceptionNode:
 
         # 仅缓存 ROI 内点云
         self.roi_pc_buffer = []
-        self.buffer_size = 1 # 实时性优先  ，可以设置1-3之间，过大可能导致距离更新滞后，过小可能不够平滑
+        self.buffer_size = 3
 
         # ========= ROS IO =========
         img_sub = message_filters.Subscriber(
@@ -92,7 +97,7 @@ class QRPerceptionNode:
             queue_size=10
         )
 
-        # cv2.namedWindow("QR_Perception", cv2.WINDOW_NORMAL)
+        cv2.namedWindow("QR_Perception", cv2.WINDOW_NORMAL)
         rospy.loginfo("🚀 QR Perception Node Started (valid-field enabled)")
 
     def rosimg_to_cv(self, msg):
@@ -135,6 +140,38 @@ class QRPerceptionNode:
         frame = self.rosimg_to_cv(img_msg.rgb_image)
         stamp = img_msg.header.stamp.to_sec()
 
+        ####  ------- 新增数据增强：
+    
+        # ========= 新增：图像预处理（增强检测稳定性） =========
+        # 1. 转为灰度图
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # 2. 创建 CLAHE 对象 (ClipLimit 是对比度限制，TileGridSize 是分块大小)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        enhanced_gray = clahe.apply(gray)
+        
+        # 3. (可选) 如果环境极度恶劣，可以尝试二值化（针对过暗环境）
+        # _, thresh = cv2.threshold(enhanced_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        # ========= QR 检测（使用增强后的灰度图） =========
+        # 提示：OpenCV 的 detect 可以在灰度图上运行，效果通常比彩色图更稳
+        ok, bbox = self.detector.detect(enhanced_gray)
+        
+        # 如果增强图没检测到，有时原始灰度图反而能行，可以做一个简单的 fallback (后备)
+        if not ok:
+            ok, bbox = self.detector.detect(gray)
+
+        if not ok or bbox is None:
+            # 如果没检测到，在 UI 上显示增强后的图像（方便调试看效果）
+            # self._update_display(cv2.cvtColor(enhanced_gray, cv2.COLOR_GRAY2BGR)) 
+            self._update_display(frame)
+            self.publish_result(False, stamp)
+            return
+
+
+        ### ---------
+
+
         # ========= QR detect (SAFE) =========
         ok, bbox = self.detector.detect(frame)
 
@@ -162,14 +199,21 @@ class QRPerceptionNode:
         # ========= QR overlay =========
         cv2.polylines(frame, [pts_qr.astype(int)], True, (0, 255, 0), 2)
         cx, cy = pts_qr.mean(axis=0)
- 
-        # . 缩小 ROI (只取中心 区域，减少边缘干扰)
+
+        # # ========= ROI =========
+        # x1, y1 = pts_qr.min(axis=0)
+        # x2, y2 = pts_qr.max(axis=0)
+        # w, h = x2 - x1, y2 - y1
+        # rx1, ry1 = x1 + 0.2 * w, y1 + 0.2 * h
+        # rx2, ry2 = x1 + 0.8 * w, y1 + 0.8 * h
+
+        # . 缩小 ROI (只取中心 20% 区域，减少边缘干扰)
         # ========= ROI =========
         x1, y1 = pts_qr.min(axis=0)
         x2, y2 = pts_qr.max(axis=0)
         w, h = x2 - x1, y2 - y1
-        rx1, ry1 = x1 + 0.46 * w, y1 + 0.46 * h 
-        rx2, ry2 = x1 + 0.54 * w, y1 + 0.54 * h  
+        rx1, ry1 = x1 + 0.46 * w, y1 + 0.46 * h  # 从 0.2 缩减到 0.4
+        rx2, ry2 = x1 + 0.6 * w, y1 + 0.6 * h  # 从 0.8 缩减到 0.6
 
         # ========= Point cloud =========
         pts = np.array(list(pc2.read_points(
@@ -246,15 +290,15 @@ class QRPerceptionNode:
 
         # ========= Overlay =========
         text = f"ID:{qr_id} MapX:{map_x} MapY:{map_y} Turn:{qr_turn}"
-        # cv2.putText(frame, text,
-        #             (int(cx) - 120, int(cy) - 45),
-        #             cv2.FONT_HERSHEY_SIMPLEX, 0.7,
-        #             (0, 255, 0), 2)
+        cv2.putText(frame, text,
+                    (int(cx) - 120, int(cy) - 45),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                    (0, 255, 0), 2)
 
-        # cv2.putText(frame, f"{lidar_dist:.2f} m",
-        #             (int(cx) - 60, int(cy) - 15),
-        #             cv2.FONT_HERSHEY_SIMPLEX, 0.9,
-        #             (0, 255, 255), 2)
+        cv2.putText(frame, f"{lidar_dist:.2f} m",
+                    (int(cx) - 60, int(cy) - 15),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.9,
+                    (0, 255, 255), 2)
 
         rospy.loginfo(f"📦 {text}  📏 {lidar_dist:.2f} m")
 
@@ -276,9 +320,9 @@ class QRPerceptionNode:
     def display_loop(self):
         rate = rospy.Rate(30)
         while not rospy.is_shutdown():
-            # with self.lock:
-            #     cv2.imshow("QR_Perception", self.latest_frame)
-            # cv2.waitKey(1)
+            with self.lock:
+                cv2.imshow("QR_Perception", self.latest_frame)
+            cv2.waitKey(1)
             rate.sleep()
 
 

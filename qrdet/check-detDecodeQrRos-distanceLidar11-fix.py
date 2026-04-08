@@ -1,25 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 '''
-FilePath: /ultralytics/qrdet/check-detDecodeQrRos-distanceLidar11.py
+FilePath: /ultralytics/qrdet/check-detDecodeQrRos-distanceLidar11-fix.py
 author: wupke
-Date: 2026-02-09 14:01:37
+Date: 2026-03-24 15:56:02
 Version: 1.0
 LastEditors: wupke
-LastEditTime: 2026-04-03 11:04:05
+LastEditTime: 2026-03-24 17:33:26
 Description:       
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
 '''
 
-
 '''
 
-相比于v10，增加二维码  yaw  字段输出
+相比于v11， 优化 convhull 报错：
+
+报错 cv2.error: ... convhull.cpp:143: error: (-215:Assertion failed) total > 0 
+是 OpenCV QRCodeDetector 在处理低质量、噪声过多或光照异常的图像帧时，内部计算凸包（Convex Hull）失败导致的。
+
+简单来说：当算法认为它找到了一个二维码候选区域，但在进一步计算形状特征时发现该区域的点集为空或格式非法，
+就会直接抛出 C++ 层面的断言错误，导致 Python 回调函数崩溃。
 
 
 '''
-
-
 
 
 #!/usr/bin/env python3
@@ -71,7 +74,7 @@ class QRPerceptionNode:
 
         # 仅缓存 ROI 内点云
         self.roi_pc_buffer = []
-        self.buffer_size = 1 # 实时性优先  ，可以设置1-3之间，过大可能导致距离更新滞后，过小可能不够平滑
+        self.buffer_size = 1
 
         # ========= ROS IO =========
         img_sub = message_filters.Subscriber(
@@ -132,24 +135,50 @@ class QRPerceptionNode:
 
 
     def callback(self, img_msg, pc_msg):
-        frame = self.rosimg_to_cv(img_msg.rgb_image)
+        # frame = self.rosimg_to_cv(img_msg.rgb_image)
+        # 1. 安全转换图像
+        try:
+            frame = self.rosimg_to_cv(img_msg.rgb_image)
+            if frame is None or frame.size == 0:
+                return
+        except Exception as e:
+            rospy.logwarn(f"Image conversion failed: {e}")
+            return
+        
         stamp = img_msg.header.stamp.to_sec()
 
-        # ========= QR detect (SAFE) =========
-        ok, bbox = self.detector.detect(frame)
+        # 2. 增强稳定性：增加异常捕获防止 convhull 崩溃
+        ok, bbox = False, None
+        try:
+            # 在某些极端光照下，detect 内部会抛出 cv2.error
+            # ok, bbox = self.detector.detect(enhanced_gray)
+            ok, bbox = self.detector.detect(frame)
+        except cv2.error as e:
+            rospy.logerr(f"OpenCV QR Detect internal error: {e}")
+            self.publish_result(valid=False, stamp=stamp)
+            return
+        except Exception as e:
+            rospy.logerr(f"Unexpected error during detection: {e}")
+            return
 
         if not ok or bbox is None:
             self.publish_result(valid=False, stamp=stamp)
             self._update_fps(frame)
             return
 
-        pts_qr = bbox[0].astype(np.float32)
-
-        # 🚨 核心防护：防止 OpenCV QR 崩溃
-        if pts_qr.shape != (4, 2) or cv2.contourArea(pts_qr) < 10.0:
+        # 3. 严格校验 bbox 形状
+        # bbox 的 shape 应该是 (1, 4, 2)
+        if len(bbox.shape) != 3 or bbox.shape[1] != 4:
             self.publish_result(valid=False, stamp=stamp)
-            self._update_fps(frame)
             return
+
+        pts_qr = bbox[0].astype(np.float32)
+        
+        # 面积过滤
+        if cv2.contourArea(pts_qr) < 10.0:
+            self.publish_result(valid=False, stamp=stamp)
+            return
+
 
         # decode（已保证 bbox 合法）
         data, _ = self.detector.decode(frame, bbox)
@@ -168,8 +197,8 @@ class QRPerceptionNode:
         x1, y1 = pts_qr.min(axis=0)
         x2, y2 = pts_qr.max(axis=0)
         w, h = x2 - x1, y2 - y1
-        rx1, ry1 = x1 + 0.46 * w, y1 + 0.46 * h 
-        rx2, ry2 = x1 + 0.54 * w, y1 + 0.54 * h  
+        rx1, ry1 = x1 + 0.46 * w, y1 + 0.46 * h  # 从 0.2 缩减到 0.4
+        rx2, ry2 = x1 + 0.6 * w, y1 + 0.6 * h  # 从 0.8 缩减到 0.6
 
         # ========= Point cloud =========
         pts = np.array(list(pc2.read_points(
@@ -255,13 +284,10 @@ class QRPerceptionNode:
         #             (int(cx) - 60, int(cy) - 15),
         #             cv2.FONT_HERSHEY_SIMPLEX, 0.9,
         #             (0, 255, 255), 2)
-
         rospy.loginfo(f"📦 {text}  📏 {lidar_dist:.2f} m")
 
         self._update_fps(frame)
 
-    
-    
     
     def _update_fps(self, frame):
         fps = 1.0 / max(1e-6, time.time() - self.last_time)

@@ -6,7 +6,7 @@ author: wupke
 Date: 2026-03-20 17:29:10
 Version: 1.0
 LastEditors: wupke
-LastEditTime: 2026-03-20 17:39:44
+LastEditTime: 2026-03-27 09:44:52
 Description:       
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
 '''
@@ -23,7 +23,6 @@ Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Res
 双重检测策略（可选）：如果原始图像没检测到，再用增强后的图像尝试检测。
 
 '''
-
 
 
 #!/usr/bin/env python3
@@ -156,8 +155,8 @@ class QRPerceptionNode:
             x1, y1 = pts_qr.min(axis=0)
             x2, y2 = pts_qr.max(axis=0)
             w, h = x2 - x1, y2 - y1
-            rx1, ry1 = x1 + 0.45 * w, y1 + 0.45 * h
-            rx2, ry2 = x1 + 0.55 * w, y1 + 0.55 * h
+            rx1, ry1 = x1 + 0.46 * w, y1 + 0.46 * h
+            rx2, ry2 = x1 + 0.6 * w, y1 + 0.6 * h
 
             # 3. 点云投影
             pts = np.array(list(pc2.read_points(pc_msg, ("x", "y", "z"), skip_nans=True)), np.float32)

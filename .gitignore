@@ -155,6 +155,10 @@ qrdet/qr_codes20260309.zip
 wandb/
 .DS_Store
 
+rosbag_data_Qr/
+rosbag_data_Qr
+
+
 # Neural Network weights -----------------------------------------------------------------------------------------------
 weights/
 *.weights

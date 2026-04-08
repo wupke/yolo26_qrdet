@@ -1,0 +1,17 @@
+Looking in indexes: https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
+Collecting tensorrt-cu12
+  Downloading https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages/ab/1a/7bb7a58a0f1823f43c40e06dc2fe006e913b646578be6573da5896e304da/tensorrt_cu12-10.16.0.72.tar.gz (17 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting tensorrt_cu12_libs==10.16.0.72 (from tensorrt-cu12)
+  Downloading https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages/b4/41/1a59ea2567500df5644c59cfd1c3ded38816845d4d6a90007e6fa056e914/tensorrt_cu12_libs-10.16.0.72.tar.gz (15 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'canceled'

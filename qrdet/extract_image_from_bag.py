@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 '''
-FilePath: /yolo26/ultralytics/qrdet/extract_image_from_bag.py
+FilePath: /ultralytics/qrdet/extract_image_from_bag.py
 author: wupke
 Date: 2026-01-30 16:10:03
 Version: 1.0
 LastEditors: wupke
-LastEditTime: 2026-02-27 09:52:37
+LastEditTime: 2026-03-26 10:43:20
 Description:       
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
 '''
@@ -23,9 +23,9 @@ from rosbags.typesys import get_typestore, Stores
 from pathlib import Path
 
 # ================= 配置区域 =================
-input_dir = Path('/media/wupke/d3fe9cd3-5ca2-4f15-bcd1-b335370b92b81/hp_笔记本转存/rosbag_data')  # 包含 .bag 文件的文件夹路径
-topic_name = '/camera/rgb_image_raw'
-save_root_dir = 'save_pic'
+input_dir = Path('/media/wupke/d3fe9cd3-5ca2-4f15-bcd1-b335370b92b81/workspace_m2/yolo26/ultralytics/rosbag_data_Qr')  # 包含 .bag 文件的文件夹路径
+topic_name = 'camera/rgb_image_raw20hz'  # 要提取的图像话题名称
+save_root_dir = input_dir/'save_pic_Qr'  # 保存图片的根目录
 # ===========================================
 
 os.makedirs(save_root_dir, exist_ok=True)

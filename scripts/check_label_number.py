@@ -6,7 +6,7 @@ author: wupke
 Date: 2026-02-02 15:22:59
 Version: 1.0
 LastEditors: wupke
-LastEditTime: 2026-02-02 15:33:39
+LastEditTime: 2026-03-26 16:50:47
 Description:       
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
 '''
@@ -71,7 +71,8 @@ from collections import Counter
 from tqdm import tqdm
 
 # === 配置路径与类别映射 ===
-src_dir = '/home/wupke/traffic_det/save_pic_checked'
+# src_dir = '/home/wupke/traffic_det/save_pic_checked'
+src_dir = '/media/wupke/d3fe9cd3-5ca2-4f15-bcd1-b335370b92b81/workspace_m2/yolo26/ultralytics/rosbag_data_Qr/dataset_qr/'
 class_map = {'0': 'right', '1': 'left', '2': 'straight'}
 
 def count_yolo_labels(data_dir):

@@ -1,0 +1,7 @@
+train: /media/wupke/d3fe9cd3-5ca2-4f15-bcd1-b335370b92b81/workspace_m2/yolo26/ultralytics/rosbag_data_Qr/dataset_qr/images/train
+val: /media/wupke/d3fe9cd3-5ca2-4f15-bcd1-b335370b92b81/workspace_m2/yolo26/ultralytics/rosbag_data_Qr/dataset_qr/images/val
+
+nc: 1  # 类别数量
+# names: ['right', 'left', 'straight']  # 类别名称列表
+names:
+  0: qr

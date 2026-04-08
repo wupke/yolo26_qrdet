@@ -1,3 +1,8 @@
+
+######  ---------------------   split_data: train val -----    ##################### 
+
+# ----------    3类组合分布划分（更细粒度的分层抽样）    ----------
+
 import os
 import shutil
 import numpy as np
@@ -6,8 +11,12 @@ from collections import Counter
 from tqdm import tqdm
 
 # === 1. 配置 ===
-src_dir = '/home/wupke/traffic_det/save_pic_checked'
-save_dir = '/home/wupke/traffic_det/dataset'
+# src_dir = '/home/wupke/traffic_det/save_pic_checked'
+# save_dir = '/home/wupke/traffic_det/dataset'
+
+src_dir = '/media/wupke/d3fe9cd3-5ca2-4f15-bcd1-b335370b92b81/workspace_m2/yolo26/ultralytics/rosbag_data_Qr/save_pic_Qr/'
+save_dir = '/media/wupke/d3fe9cd3-5ca2-4f15-bcd1-b335370b92b81/workspace_m2/yolo26/ultralytics/rosbag_data_Qr/save_pic_Qr/dataset/'
+
 train_ratio = 0.85
 
 # === 2. 获取每张图的标签组合 (Meta-class) ===

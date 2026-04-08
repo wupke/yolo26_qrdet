@@ -6,7 +6,7 @@ author: wupke
 Date: 2026-02-02 17:56:34
 Version: 1.0
 LastEditors: wupke
-LastEditTime: 2026-02-03 11:17:55
+LastEditTime: 2026-03-27 10:37:34
 Description:       
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
 '''
@@ -19,7 +19,11 @@ from ultralytics import YOLO
 
 # 1. 加载模型
 # model = YOLO("runs/detect/train6_100epoch/weights/best.pt")
-model = YOLO("runs/detect/train_s-label2/weights/best.pt")
+# model = YOLO("runs/detect/train_s-label2/weights/best.pt")
+model = YOLO("/media/wupke/d3fe9cd3-5ca2-4f15-bcd1-b335370b92b81/workspace_m2/yolo26/ultralytics/runs/detect/train4/weights/best_with65.pt")  # ⭐ 直接加载最佳权重，避免每次都从头加载整个训练过程的日志和检查点
+# model = model.to("cuda:0")  # ⭐ 将模型移动到 GPU 0 上，确保推理加速
+# model=YOLO("/media/wupke/d3fe9cd3-5ca2-4f15-bcd1-b335370b92b81/workspace_m2/yolo26/ultralytics/weights/yolo26s.pt").to("cuda:0")  # ⭐ 直接加载预训练的 YOLOv8n 模型，适合快速测试和基线对比
+# model=YOLO("/media/wupke/d3fe9cd3-5ca2-4f15-bcd1-b335370b92b81/workspace_m2/yolo26/ultralytics/weights/yolo26s.pt")  # ⭐ 直接加载预训练的 YOLOv8n 模型，适合快速测试和基线对比
 
 ##### 检测视频流（摄像头） #####
 # 2. 打开摄像头（0=默认摄像头）

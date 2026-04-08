@@ -6,7 +6,7 @@ author: wupke
 Date: 2026-02-09 16:06:05
 Version: 1.0
 LastEditors: wupke
-LastEditTime: 2026-03-20 18:12:11
+LastEditTime: 2026-03-24 12:07:24
 Description:       
 Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Reserved.
 '''
@@ -19,6 +19,9 @@ Copyright: Copyright (c) 2026 by ${git_name} email: ${git_email}, All Rights Res
 “先低成本 detect（找可能是二维码的地方），再对该区域做连续跟踪 + 多尺度解码”
 
 '''
+
+
+# 基于 check-detDecodeQrRos-distanceLidar11withoutcv11和17版本的结合，继续优化：
 
 
 #!/usr/bin/env python3
@@ -142,13 +145,13 @@ class QRPerceptionNode:
             self._update_display(frame)
             return
 
-        # --- 步骤 4: 点云测距逻辑 (ROI 采样 10%) ---
+        # --- 步骤 4: 点云测距逻辑 (ROI 采样 5%) ---
         x1, y1 = pts_qr.min(axis=0)
         x2, y2 = pts_qr.max(axis=0)
         w, h = x2 - x1, y2 - y1
-        # 只取中心 10% 面积区域
-        rx1, ry1 = x1 + 0.45 * w, y1 + 0.45 * h
-        rx2, ry2 = x1 + 0.55 * w, y1 + 0.55 * h
+        # 只取中心 5% 面积区域
+        rx1, ry1 = x1 + 0.46 * w, y1 + 0.46 * h
+        rx2, ry2 = x1 + 0.6 * w, y1 + 0.56 * h
 
         pts = np.array(list(pc2.read_points(pc_msg, ("x", "y", "z"), skip_nans=True)), np.float32)
         # 点云初筛
